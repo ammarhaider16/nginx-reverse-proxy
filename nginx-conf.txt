@@ -1,1 +1,68 @@
 This file contains configuration info for the nginx.conf file in the server used to set up the reverse proxy. 
+
+# Controls how many parallel processes nginx spawns to handle client requests
+# Instead of using a new process for any incoming connection, nginx uses worker processes that handle many connections using a single-threaded event loop 
+# In production, worker_processes should be set to the number of CPU cores of the server where nginx is running to take advantage of parallel processing
+worker_processes 1;
+
+# Defines how many simultaneous connections each worker process can handle
+# More connections -> more memory used
+events {
+	worker_connections 1024;
+}
+
+
+# Defines how to handle http requests for a particular domain or IP address -> how to listen for connections, which domain the configuration applies to, and how to route the requests
+http {
+	# Configure nginx to include the type of the file in the content-type response header when sending a file
+	include mime.types;
+
+
+	# Define a group of backend servers that will handle requests forwarded by nginx
+	# Also Define logic for which server to send the request to; default is round robin
+	upstream nodejs_cluster {
+		least_conn;
+		server 172.21.125.214:3001;
+		server 172.21.125.214:3002;
+		server 172.21.125.214:3003;
+	}
+	
+	server {
+		listen 443 ssl; # IP address and port on which server accepts requests - configured to use SSL based HTTPS
+
+		#Define locations for ssl public/private certificates
+		ssl_certificate <enter location of public key>;
+		ssl_certificate_key <enter location of private key>;
+
+		server_name localhost; # Where is the client sending requests to
+
+		# Defines logic for handling requests 
+		location / {
+			# Pass the request to another server, making it act as a reverse proxy
+			proxy_pass http://nodejs_cluster;
+
+			# Forward info from original client requests to the backend servers
+			# The requests provide useful information which the backend servers can use for logging / processing
+			
+			proxy_set_header Host $host;
+
+			# When nginx acts as a reverse proxy, the requests coming to the backend servers originate from Nginx, not directly from the client - backend servers would see the IP address of the nginx server as the source of the request. We can configure nginx to convey the IP address of the client to the backend server which is important for logging purposes
+			proxy_set_header X-Real-IP $remote_addr;
+
+		}
+	}
+
+
+	# Redirect HTTP connections to HTTPS server
+	server {
+		listen 8080;
+		server_name localhost;
+
+		location / {
+			return 301 https://$host$request_uri;
+		}
+	}
+}
+
+
+ 
