@@ -6,7 +6,7 @@ This file contains configuration info for the nginx.conf file in the server used
 worker_processes 1;
 
 # Defines how many simultaneous connections each worker process can handle
-# More connections -> more memory used
+# More connections = more memory used
 events {
 	worker_connections 1024;
 }
@@ -22,30 +22,30 @@ http {
 	# Also Define logic for which server to send the request to; default is round robin
 	upstream nodejs_cluster {
 		least_conn;
-		server 172.21.125.214:3001;
-		server 172.21.125.214:3002;
-		server 172.21.125.214:3003;
+		server <YOUR_IP-ADDRESS>:3001;
+		server <YOUR_IP-ADDRESS>:3002;
+		server <YOUR_IP-ADDRESS>:3003;
 	}
 
 
 	# Different backend logic to determine server --> ip-hash guarantees requests from the same address go to the same server unless it is not available
 	upstream session-persist-cluster {
 		ip_hash;
-		server 172.21.125.214:3001;
-		server 172.21.125.214:3002;
-		server 172.21.125.214:3003;
+		server <YOUR_IP-ADDRESS>:3001;
+		server <YOUR_IP-ADDRESS>:3002;
+		server <YOUR_IP-ADDRESS>:3003;
 	}
 
 	upstream app-1 {
-		server 172.21.125.214:3001;
+		server <YOUR_IP-ADDRESS>:3001;
 	}
 
 	upstream app-2 {
-		server 172.21.125.214:3002;
+		server <YOUR_IP-ADDRESS>:3002;
 	}
 
 	upstream app-3 {
-		server 172.21.125.214:3003;
+		server <YOUR_IP-ADDRESS>:3003;
 	}
 
 
@@ -53,9 +53,10 @@ http {
 		listen 443 ssl;
 		# IP address and port on which server accepts requests - configured to use SSL based HTTPS
 
-		#Define locations for ssl public/private certificates
-		ssl_certificate /mnt/c/Users/mamma/nginx-certs/nginx-selfsigned.crt;
-		ssl_certificate_key /mnt/c/Users/mamma/nginx-certs/nginx-selfsigned.key;
+		# Define locations for ssl public/private certificates
+		# Public key ends with a .cert extension; private key ends with a .key extension
+		ssl_certificate <PUBLIC_KEY_LOCATION>;
+		ssl_certificate_key <PRIVATE_KEY_LOCATION>;
 
 		server_name localhost;
 		# Where is the client sending requests to
