@@ -1,0 +1,1 @@
+This file contains configuration info for the nginx.conf file in the server used to set up the reverse proxy. 
