@@ -1,7 +1,7 @@
 This file contains configuration info for the nginx.conf file in the server used to set up the reverse proxy. 
 
 # Controls how many parallel processes nginx spawns to handle client requests
-# Instead of using a new process for any incoming connection, nginx uses worker processes that handle many connections using a single-threaded event loop 
+# Instead of using a new process for any incoming connection, nginx uses worker processes that handle many connections using a single-threaded event loop
 # In production, worker_processes should be set to the number of CPU cores of the server where nginx is running to take advantage of parallel processing
 worker_processes 1;
 
@@ -26,36 +26,84 @@ http {
 		server 172.21.125.214:3002;
 		server 172.21.125.214:3003;
 	}
-	
+
+
+	# Different backend logic to determine server --> ip-hash guarantees requests from the same address go to the same server unless it is not available
+	upstream session-persist-cluster {
+		ip_hash;
+		server 172.21.125.214:3001;
+		server 172.21.125.214:3002;
+		server 172.21.125.214:3003;
+	}
+
+	upstream app-1 {
+		server 172.21.125.214:3001;
+	}
+
+	upstream app-2 {
+		server 172.21.125.214:3002;
+	}
+
+	upstream app-3 {
+		server 172.21.125.214:3003;
+	}
+
+
 	server {
-		listen 443 ssl; # IP address and port on which server accepts requests - configured to use SSL based HTTPS
+		listen 443 ssl;
+		# IP address and port on which server accepts requests - configured to use SSL based HTTPS
 
 		#Define locations for ssl public/private certificates
-		ssl_certificate <enter location of public key>;
-		ssl_certificate_key <enter location of private key>;
+		ssl_certificate /mnt/c/Users/mamma/nginx-certs/nginx-selfsigned.crt;
+		ssl_certificate_key /mnt/c/Users/mamma/nginx-certs/nginx-selfsigned.key;
 
-		server_name localhost; # Where is the client sending requests to
+		server_name localhost;
+		# Where is the client sending requests to
 
-		# Defines logic for handling requests 
+		# map to different upstream backends based on header
+		map $http_x_server_select $pool {
+			app-1 "app-1";
+			app-2 "app-2";
+			app-3 "app-3";
+		}
+
+		# Defines logic for handling requests
 		location / {
 			# Pass the request to another server, making it act as a reverse proxy
 			proxy_pass http://nodejs_cluster;
 
 			# Forward info from original client requests to the backend servers
 			# The requests provide useful information which the backend servers can use for logging / processing
-			
+
 			proxy_set_header Host $host;
 
 			# When nginx acts as a reverse proxy, the requests coming to the backend servers originate from Nginx, not directly from the client - backend servers would see the IP address of the nginx server as the source of the request. We can configure nginx to convey the IP address of the client to the backend server which is important for logging purposes
 			proxy_set_header X-Real-IP $remote_addr;
 
 		}
+
+
+		location /session-persist/ {
+			proxy_pass http://session-persist-cluster;
+			proxy_set_header Host $host;
+			proxy_set_header X-Real-IP $remote_addr;
+
+		}
+
+		location /app-1/ {
+			proxy_pass http://app-1;
+			proxy_set_header Host $host;
+			proxy_set_header X-Real-IP $remote_addr;
+
+		}
+
+
 	}
 
 
 	# Redirect HTTP connections to HTTPS server
 	server {
-		listen 8080;
+		listen 80;
 		server_name localhost;
 
 		location / {
@@ -64,5 +112,3 @@ http {
 	}
 }
 
-
- 
